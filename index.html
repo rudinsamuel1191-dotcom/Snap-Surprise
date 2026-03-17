@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SnapSurprise | Predator Photoshoot</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .night-mode {
+            filter: brightness(0.5) contrast(1.2) hue-rotate(180deg) saturate(0.8);
+        }
+        .savanna-bg { background-image: url('https://images.unsplash.com/photo-1516026672322-bc52d61a55d5?auto=format&fit=crop&w=1200&q=80'); }
+        .jungle-bg { background-image: url('https://images.unsplash.com/photo-1581447100595-3773dadbae11?auto=format&fit=crop&w=1200&q=80'); }
+        #photo-canvas { transition: all 0.5s ease; }
+    </style>
+</head>
+<body class="bg-zinc-900 text-white min-h-screen flex flex-col items-center justify-center p-4">
+
+    <div class="max-w-md w-full bg-zinc-800 rounded-3xl overflow-hidden shadow-2xl border border-zinc-700">
+        <div class="p-6 text-center">
+            <h1 class="text-3xl font-black tracking-tighter text-yellow-500">SnapSurprise 🦁</h1>
+            <p class="text-zinc-400 text-sm">Step into the wild. Don't move.</p>
+        </div>
+
+        <div class="relative aspect-[3/4] bg-black overflow-hidden bg-cover bg-center transition-all duration-700" id="habitat-bg">
+            <video id="video" class="w-full h-full object-cover" autoplay playsinline></video>
+            <canvas id="photo-canvas" class="absolute inset-0 w-full h-full hidden"></canvas>
+            
+            <div id="predator-overlay" class="absolute bottom-0 right-0 w-1/2 opacity-80 pointer-events-none">
+                <img src="https://pngimg.com/d/lion_PNG23253.png" class="w-full h-auto" alt="Lion">
+            </div>
+        </div>
+
+        <div class="p-6 space-y-4">
+            <div class="flex gap-2">
+                <select id="animal-select" class="flex-1 bg-zinc-700 border-none rounded-xl p-3 text-sm focus:ring-2 focus:ring-yellow-500">
+                    <option value="savanna">🦁 African Lion</option>
+                    <option value="jungle">🐍 Amazon Anaconda</option>
+                </select>
+                <button id="time-toggle" class="bg-zinc-700 px-4 rounded-xl hover:bg-zinc-600 transition">
+                    ☀️ Day
+                </button>
+            </div>
+
+            <button id="snap-btn" class="w-full bg-yellow-500 hover:bg-yellow-400 text-black font-black py-4 rounded-2xl transition transform active:scale-95 shadow-lg">
+                TAKE THE PHOTO
+            </button>
+
+            <div id="share-section" class="hidden animate-bounce text-center pt-4">
+                <p class="text-xs text-zinc-500 mb-2 uppercase font-bold">Share your encounter</p>
+                <div class="flex justify-center gap-6">
+                    <button class="text-2xl hover:opacity-70">📱</button>
+                    <button class="text-2xl hover:opacity-70">💬</button>
+                    <button class="text-2xl hover:opacity-70">📸</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('photo-canvas');
+        const snapBtn = document.getElementById('snap-btn');
+        const timeBtn = document.getElementById('time-toggle');
+        const habitat = document.getElementById('habitat-bg');
+        let isNight = false;
+
+        // Initialize Camera
+        async function startCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+                video.srcObject = stream;
+            } catch (err) {
+                alert("Please enable camera access to play!");
+            }
+        }
+
+        // Toggle Day/Night (The Pro Tip Logic)
+        timeBtn.addEventListener('click', () => {
+            isNight = !isNight;
+            if (isNight) {
+                video.classList.add('night-mode');
+                timeBtn.innerHTML = '🌙 Night';
+                habitat.style.filter = 'brightness(0.4) saturate(0.6)';
+            } else {
+                video.classList.remove('night-mode');
+                timeBtn.innerHTML = '☀️ Day';
+                habitat.style.filter = 'none';
+            }
+        });
+
+        // Snap Function
+        snapBtn.addEventListener('click', () => {
+            const context = canvas.getContext('2d');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            
+            // Apply the current filter to the canvas to "freeze" the lighting
+            if (isNight) {
+                context.filter = 'brightness(0.5) contrast(1.2) hue-rotate(180deg) saturate(0.8)';
+            }
+            
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            video.classList.add('hidden');
+            canvas.classList.remove('hidden');
+            
+            snapBtn.innerHTML = "PHOTO SAVED!";
+            snapBtn.classList.replace('bg-yellow-500', 'bg-green-500');
+            document.getElementById('share-section').classList.remove('hidden');
+        });
+
+        startCamera();
+        habitat.classList.add('savanna-bg');
+    </script>
+</body>
+</html>
