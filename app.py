@@ -1,72 +1,84 @@
 import streamlit as st
-from PIL import Image, ImageEnhance, ImageOps
-from rembg import remove
+from PIL import Image, ImageEnhance
 import io
-import numpy as np
 
-# --- PAGE CONFIG ---
-st.set_page_config(page_title="SnapSurprise | Apex Photo Booth", page_icon="🦁")
+# --- CLOUD-FRIENDLY BACKGROUND REMOVAL ---
+def process_transformation(input_image, time_of_day):
+    """
+    This function handles the AI and the lighting adjustments.
+    By importing 'rembg' inside here, the app starts up much faster.
+    """
+    from rembg import remove
+    
+    # 1. Apply Realistic Lighting (Pro-Tip)
+    if time_of_day == "Night":
+        # Darken the subject
+        enhancer = ImageEnhance.Brightness(input_image)
+        input_image = enhancer.enhance(0.4) 
+        # Add a cool blue 'moonlight' tint
+        r, g, b = input_image.split()
+        r = r.point(lambda i: i * 0.7) # Dim the reds
+        b = b.point(lambda i: i * 1.3) # Boost the blues
+        input_image = Image.merge("RGB", (r, g, b))
+    else:
+        # Subtle 'Sunlight' boost for Day mode
+        enhancer = ImageEnhance.Contrast(input_image)
+        input_image = enhancer.enhance(1.1)
+
+    # 2. Remove Background
+    output_image = remove(input_image)
+    return output_image
+
+# --- UI CONFIGURATION ---
+st.set_page_config(page_title="SnapSurprise", page_icon="🦁")
 
 st.title("🦁 SnapSurprise")
-st.markdown("### Pose with predators. Stay alive (virtually).")
+st.subheader("Your realistic predator photoshoot.")
 
-# --- SIDEBAR SETTINGS ---
-st.sidebar.header("📸 Photoshoot Settings")
-animal = st.sidebar.selectbox("Select your Predator", ["Lion", "Anaconda", "Grizzly Bear", "Great White Shark"])
-time_of_day = st.sidebar.select_slider("Time of Day", options=["Day", "Night"])
+# --- SIDEBAR CONTROLS ---
+with st.sidebar:
+    st.header("Settings")
+    animal = st.selectbox("Choose your Predator", ["Lion", "Anaconda", "Grizzly Bear", "Great White Shark"])
+    time_of_day = st.select_slider("Lighting Environment", options=["Day", "Night"])
+    st.divider()
+    st.info("💡 For best results, stand in a well-lit area with a simple background.")
 
-st.sidebar.markdown("---")
-st.sidebar.info("Tip: For the best look, stand against a plain wall!")
-
-# --- LOGIC: ASSET MAPPING ---
-# In a real repo, you'd have these images in a folder. 
-# Here we define the vibe for the 'Ultra-Realistic' backgrounds.
-bg_descriptions = {
-    "Lion": "African Savanna",
-    "Anaconda": "Amazon Rainforest",
-    "Grizzly Bear": "Alaskan Forest",
-    "Great White Shark": "Deep Ocean"
-}
-
-# --- STEP 1: CAPTURE PHOTO ---
-img_file = st.camera_input("Take a seat next to the beast!")
+# --- MAIN INTERFACE ---
+img_file = st.camera_input("Smile for the predator!")
 
 if img_file:
-    with st.spinner("AI is dragging you into the wild..."):
-        # Load User Image
-        input_image = Image.open(img_file)
+    # Progress bar makes the wait feel shorter for the user
+    with st.status("Merging you into the wild...", expanded=True) as status:
+        st.write("Analyzing lighting...")
+        user_img = Image.open(img_file)
         
-        # --- PRO TIP: LIGHTING MATCHING ---
-        if time_of_day == "Night":
-            # Darken the user
-            enhancer = ImageEnhance.Brightness(input_image)
-            input_image = enhancer.enhance(0.5) 
-            # Add a blue 'moonlight' tint
-            r, g, b = input_image.split()
-            r = r.point(lambda i: i * 0.8) # Reduce red
-            b = b.point(lambda i: i * 1.2) # Boost blue
-            input_image = Image.merge("RGB", (r, g, b))
+        st.write("Removing your room (AI)...")
+        final_result = process_transformation(user_img, time_of_day)
         
-        # --- STEP 2: REMOVE BACKGROUND ---
-        # This removes the user's room background
-        user_no_bg = remove(input_image)
-        
-        # --- STEP 3: COMPOSITE (Mockup Logic) ---
-        # Note: In a full build, you'd overlay this on a high-res JPG.
-        # For this script, we'll show your 'cutout' ready for the habitat.
-        st.image(user_no_bg, caption=f"You, processed for the {bg_descriptions[animal]} at {time_of_day}!")
-        
-        # --- STEP 4: SHARING ---
-        st.success("Photo Ready!")
-        
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.button("📲 Share to Instagram")
-        with col2:
-            st.button("🐦 Share to Twitter")
-        with col3:
-            st.download_button("💾 Download High-Res", data=img_file, file_name="snap_surprise.png")
+        status.update(label="Transformation Complete!", state="complete", expanded=False)
+
+    # Display Result
+    st.image(final_result, caption=f"You vs. The {animal} ({time_of_day} Edition)")
+
+    # Social Sharing Simulation
+    st.write("### 📲 Share your encounter:")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.button("Instagram", use_container_width=True)
+    with col2:
+        st.button("WhatsApp", use_container_width=True)
+    with col3:
+        # Allow the user to actually save the file
+        buf = io.BytesIO()
+        final_result.save(buf, format="PNG")
+        st.download_button(
+            label="Download Photo",
+            data=buf.getvalue(),
+            file_name="snapsurprise_wild.png",
+            mime="image/png",
+            use_container_width=True
+        )
 
 # --- FOOTER ---
 st.markdown("---")
-st.caption("Built with ❤️ for fun-hearted explorers.")
+st.caption("Built for fun-hearted adventurers. SnapSurprise © 2026")
